@@ -1,4 +1,8 @@
-// bft/src/node.rs
+//! # Node Module
+//!
+//! This module defines the behavior of nodes in the BFT simulation.
+//!
+//! Nodes can be honest, Byzantine, or passive. Each node implements the `Node` trait, which defines methods for handling messages, proposing values, voting, and finalizing values.
 
 use futures::future::{ready};
 use std::pin::Pin;
@@ -9,27 +13,75 @@ use std::collections::VecDeque;
 use crate::logging;
 use futures::{future::BoxFuture};
 
+/// Trait defining the behavior of a node in the BFT simulation.
+/// 
+/// ## Methods
+/// - `handle`: Handles an incoming message.
+/// - `run`: Runs the node's main loop.
+/// - `propose`: Proposes a value for consensus.
+/// - `vote`: Votes on a proposed value.
+/// - `finalize`: Finalizes a value.
 pub trait Node {
     /// Handles an incoming message.
+    /// 
+    /// ## Parameters
+    /// - `sender`: The ID of the sender node.
+    /// - `message`: The message to handle.
+    /// 
+    /// ## Returns
+    /// A future that resolves when the message is processed.
     fn handle(&mut self, sender: usize, message: Message) -> BoxFuture<'static, ()>;
 
     /// Runs the node's main loop.
+    /// 
+    /// ## Returns
+    /// An iterator over futures representing the node's operations.
     fn run(&mut self) -> Box<dyn Iterator<Item = BoxFuture<'static, ()>> + Send + '_>;
 
     /// Proposes a value for consensus.
+    /// 
+    /// ## Parameters
+    /// - `value`: The value to propose.
+    /// 
+    /// ## Returns
+    /// A future that resolves when the proposal is processed.
     fn propose(&mut self, value: String) -> BoxFuture<'static, ()>;
 
     /// Votes on a proposed value.
+    /// 
+    /// ## Parameters
+    /// - `proposal_id`: The ID of the proposal.
+    /// - `value`: The value to vote for.
+    /// 
+    /// ## Returns
+    /// A future that resolves when the vote is processed.
     fn vote(&mut self, proposal_id: usize, value: String) -> BoxFuture<'static, ()>;
 
+    /// Finalizes a value.
+    /// 
+    /// ## Parameters
+    /// - `value`: The value to finalize.
+    /// 
+    /// ## Returns
+    /// A future that resolves with the finalized value, or `None` if finalization fails.
     fn finalize(&mut self, value: String) -> BoxFuture<'static, Option<String>>;
 }
 
+/// Represents a passive node in the BFT simulation.
+/// 
+/// Passive nodes do not actively participate in the consensus process but can still receive and log messages.
 pub struct PassiveNode {
     pub id: usize,
 }
 
 impl PassiveNode {
+    /// Creates a new passive node.
+    /// 
+    /// ## Parameters
+    /// - `id`: The unique ID of the node.
+    /// 
+    /// ## Returns
+    /// A new `PassiveNode` instance.
     pub fn new(id: usize) -> Self {
         Self { id }
     }
@@ -56,12 +108,22 @@ fn vote(&mut self, _: usize, _: String) -> Pin<Box<(dyn futures::Future<Output =
 fn finalize(&mut self, _: String) -> Pin<Box<(dyn futures::Future<Output = Option<String>> + std::marker::Send + 'static)>> { todo!() }
 }
 
+/// Represents a sequential node in the BFT simulation.
+/// 
+/// Sequential nodes process messages in the order they are received.
 pub struct SequentialNode {
     pub id: usize,
     pub mailbox: VecDeque<(usize, Message)>, // Mailbox for incoming messages
 }
 
 impl SequentialNode {
+    /// Creates a new sequential node.
+    /// 
+    /// ## Parameters
+    /// - `id`: The unique ID of the node.
+    /// 
+    /// ## Returns
+    /// A new `SequentialNode` instance.
     pub fn new(id: usize) -> Self {
         Self {
             id,
@@ -107,6 +169,8 @@ fn finalize(&mut self, _: String) -> Pin<Box<(dyn futures::Future<Output = Optio
 }
 
 /// Represents an honest node in the BFT simulation.
+/// 
+/// Honest nodes actively participate in the consensus process by proposing values, voting, and finalizing values.
 pub struct HonestNode {
     pub id: usize,
     pub mailbox: VecDeque<(usize, Message)>, // Mailbox for incoming messages
@@ -118,6 +182,13 @@ pub struct HonestNode {
 
 /// Creates a new `HonestNode` instance.
 impl HonestNode {
+    /// Creates a new honest node.
+    /// 
+    /// ## Parameters
+    /// - `id`: The unique ID of the node.
+    /// 
+    /// ## Returns
+    /// A new `HonestNode` instance.
     pub fn new(id: usize) -> Self {
         Self {
             id,
@@ -128,11 +199,20 @@ impl HonestNode {
             clock: 0,
         }
     }
+
+    /// Increments the logical clock.
+    /// 
+    /// ## Returns
+    /// The updated logical clock value.
     fn increment_clock(&mut self) -> u64 {
         self.clock += 1;
         self.clock
     }
 
+    /// Updates the logical clock based on another node's clock.
+    /// 
+    /// ## Parameters
+    /// - `other_clock`: The logical clock value of another node.
     fn update_clock(&mut self, other_clock: u64) {
         self.clock = self.clock.max(other_clock) + 1;
     }
@@ -190,12 +270,20 @@ impl Node for HonestNode {
     }
 }
 
-/// Represents an Byzantine node in the BFT simulation.
+/// Represents a Byzantine node in the BFT simulation.
+/// 
+/// Byzantine nodes may behave adversarially by ignoring messages, sending conflicting responses, or refusing to finalize values.
 pub struct ByzantineNode {
     pub id: usize,
 }
 
-/// Creates a new `ByzantineNode` instance.
+/// Creates a new Byzantine node.
+/// 
+/// ## Parameters
+/// - `id`: The unique ID of the node.
+/// 
+/// ## Returns
+/// A new `ByzantineNode` instance.
 impl ByzantineNode {
     pub fn new(id: usize) -> Self {
         Self { id }

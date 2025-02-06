@@ -1,4 +1,12 @@
-// src/block.rs
+/// Represents a block in the Best-Chain protocol.
+/// 
+/// A `BCBlock` contains the parent block hash, score, transactions, and its own hash.
+/// 
+/// ## Fields
+/// - `parent`: The hash of the parent block.
+/// - `score`: The block's score relative to the parent.
+/// - `transactions`: The list of transactions included in the block.
+/// - `hash`: The unique hash of the block.
 use serde::{Serialize, Deserialize};
 use rand::Rng;
 

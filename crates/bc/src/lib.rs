@@ -1,7 +1,7 @@
 //! # Best-Chain Protocol (BC)
 //!
-//! The `bc` crate implements the core types and logic for the best-chain protocol,
-//! including transactions, blocks, and context management.
+//! The `bc` crate implements the core types and logic for the Best-Chain (BC) protocol,
+//! including blocks, transactions, and context management.
 //!
 //! ## Features
 //! - Transaction validation

@@ -1,4 +1,13 @@
-// src/context.rs
+/// Adds a transaction to the context.
+/// 
+/// This method updates the UTXO set, notes, and total issuance based on the transaction.
+/// 
+/// ## Parameters
+/// - `tx`: The transaction to add.
+/// 
+/// ## Returns
+/// - `true` if the transaction is valid and successfully added.
+/// - `false` if the transaction is invalid.
 use serde::{Serialize, Deserialize};
 use std::collections::{HashSet, HashMap};
 use std::hash::Hash;

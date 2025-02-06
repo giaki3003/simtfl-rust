@@ -1,3 +1,23 @@
+//! # Transactions
+//!
+//! This module defines the `BCTransaction` struct and related types for the Best-Chain protocol.
+//!
+//! Transactions can include transparent and shielded inputs/outputs, fees, and issuance.
+//! They are validated against the current context to ensure correctness.
+
+/// Represents a transaction in the Best-Chain protocol.
+/// 
+/// A `BCTransaction` contains transparent and shielded inputs/outputs, a fee, an anchor, and issuance.
+/// 
+/// ## Fields
+/// - `transparent_inputs`: List of transparent inputs.
+/// - `transparent_outputs`: List of transparent outputs.
+/// - `shielded_inputs`: List of shielded inputs.
+/// - `shielded_outputs`: List of shielded outputs.
+/// - `fee`: The transaction fee.
+/// - `anchor`: Optional anchor to a prior context.
+/// - `issuance`: The amount of new coins issued by the transaction.
+
 use crate::context::Spentness;
 use crate::context::BCContext;
 use serde::{Serialize, Deserialize};
@@ -14,7 +34,14 @@ pub struct BCTransaction {
     pub issuance: i32,
 }
 
-/// Transparent transaction output
+/// Represents a transparent transaction output.
+/// 
+/// A `TXO` contains the transaction it belongs to, its index, and its value.
+/// 
+/// ## Fields
+/// - `tx`: The transaction this output belongs to.
+/// - `index`: The index of this output in the transaction.
+/// - `value`: The value of this output.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[derive(Eq, Hash, PartialEq)]
 pub struct TXO {
@@ -23,7 +50,12 @@ pub struct TXO {
     pub value: i32,
 }
 
-/// Shielded note
+/// Represents a shielded note.
+/// 
+/// A `Note` contains a value and is used for shielded transactions.
+/// 
+/// ## Fields
+/// - `value`: The value of the note.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[derive(Eq, Hash, PartialEq)]
 pub struct Note {
@@ -32,7 +64,14 @@ pub struct Note {
 
 // crates/bc/src/transaction.rs
 impl BCTransaction {
-    /// Check if the transaction is valid.
+    /// Validates the transaction against the given context.
+    /// 
+    /// ## Parameters
+    /// - `context`: The current context to validate against.
+    /// 
+    /// ## Returns
+    /// - `true` if the transaction is valid.
+    /// - `false` otherwise.
     pub fn is_valid(&self, context: &BCContext) -> bool {
         println!("Validating transaction:");
         println!("Is Coinbase: {}", self.is_coinbase());
@@ -87,7 +126,9 @@ impl BCTransaction {
         true
     }
     
-    /// Check if the transaction is a coinbase transaction.
+    /// Checks if the transaction is a coinbase transaction.
+    /// 
+    /// A coinbase transaction has no transparent or shielded inputs.
     fn is_coinbase(&self) -> bool {
         self.transparent_inputs.is_empty() && self.shielded_inputs.is_empty()
     }

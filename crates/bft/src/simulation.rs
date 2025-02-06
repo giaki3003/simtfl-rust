@@ -1,4 +1,9 @@
-// bft/src/simulation.rs
+//! # Simulation Module
+//!
+//! This module implements the simulation framework for the BFT protocol.
+//!
+//! The `Simulation` struct manages the network and nodes, facilitating the execution of the BFT protocol.
+//! It processes events from the event queue and runs the main loop for each node.
 
 use crate::logging;
 use crate::message::Message;
@@ -6,6 +11,13 @@ use crate::node::Node;
 use crate::network::Network;
 use std::sync::{Arc, Mutex};
 
+/// Represents the simulation framework for the BFT protocol.
+/// 
+/// The `Simulation` struct manages the network and nodes, processing events and running the main loop for each node.
+/// 
+/// ## Fields
+/// - `network`: The communication network for the simulation.
+/// - `nodes`: The list of nodes participating in the simulation.
 pub struct Simulation {
     // Wrap Network in a Mutex to allow mutable access behind the Arc.
     pub network: Arc<Mutex<Network>>,
@@ -19,6 +31,12 @@ impl Default for Simulation {
 }
 
 impl Simulation {
+    /// Creates a new simulation framework.
+    /// 
+    /// Initializes an empty network and an empty list of nodes.
+    /// 
+    /// ## Returns
+    /// A new `Simulation` instance.
     pub fn new() -> Self {
         Self {
             network: Arc::new(Mutex::new(Network::new())),
@@ -26,6 +44,10 @@ impl Simulation {
         }
     }
 
+    /// Adds a new node to the simulation.
+    /// 
+    /// ## Parameters
+    /// - `node`: The node to add to the simulation.
     pub fn add_node(&mut self, node: impl Node + Send + Sync + 'static) {
         // Lock network for mutable access to add the node.
         let node_id = {
@@ -50,6 +72,18 @@ impl Simulation {
         self.nodes.push(node_arc);
     }
 
+    /// Starts the simulation.
+    /// 
+    /// Processes events from the event queue and runs the main loop for each node.
+    /// The simulation continues until the event queue is empty.
+    /// 
+    /// ## Example
+    /// ```rust
+    /// let mut simulation = Simulation::new();
+    /// simulation.add_node(HonestNode::new(0));
+    /// simulation.add_node(ByzantineNode::new(1));
+    /// async_std::task::block_on(simulation.start());
+    /// ```
     pub async fn start(&mut self) {
         logging::log_info("Starting BFT simulation...");
 
