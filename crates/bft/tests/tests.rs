@@ -29,32 +29,129 @@ mod tests {
         logging::log_debug("This is a debug message."); // This won't appear unless the log level is DEBUG or lower
     }
 
+    /// Test that a block created without any parent returns itself.
     #[test]
     fn test_streamlet() {
+        // Create a genesis block for a workspace with 3 nodes.
+        // For example, StreamletGenesis::new(3) creates a genesis with n=3 and t=2 (if calculated as (3*2+2)/3).
         let _genesis = StreamletGenesis::new(3);
+        // Create a proposal on top of an explicit genesis base.
         let proposal1 = StreamletProposal::new(
             Box::new(PermissionedBFTEnum::Base(PermissionedBFTBase {
                 n: 3,
                 t: 2,
                 parent: None,
             })),
-            1,
+            1, // epoch 1
         );
-
+        // Create a block from the proposal, with no parent.
         let block1 = StreamletBlock {
             proposal: Box::new(proposal1),
             parent: None,
         };
 
-        // Verify that the last_final method returns the genesis block
+        // In the Python code, if a block's parent is None, last_final() returns self.
+        // Therefore, we expect block1.last_final() to equal block1.
         assert_eq!(
             block1.last_final(),
-            PermissionedBFTEnum::Base(PermissionedBFTBase {
-                n: 3,
-                t: 2,
-                parent: None,
-            })
+            PermissionedBFTEnum::Block(block1.clone())
         );
+    }
+
+    /// Test a chain built on top of genesis.
+    #[test]
+    fn test_streamlet_basic() {
+        // Construct the genesis block.
+        // Using 5 nodes so that t is computed (for example, (5*2+2)/3) and genesis always has epoch 0.
+        let genesis = StreamletGenesis::new(5);
+        // genesis.last_final() should return a Base wrapping the genesis block.
+        let genesis_bft = genesis.last_final();
+        let current = genesis_bft.clone();
+
+        // Verify that the genesis block is final and has epoch 0.
+        assert_eq!(current, genesis_bft);
+        assert_eq!(current.epoch(), 0);
+
+        // Build one new block on top of genesis.
+        // (In Python, with only one new block, the chain is too short for an update,
+        // so last_final() should return the genesis block.)
+        {
+            // Create a new proposal with epoch = parent's epoch + 1 (i.e. 1).
+            let mut proposal = StreamletProposal::new(Box::new(current.clone()), current.epoch() + 1);
+            // When current is genesis (epoch 0), proposal.epoch() should be 1.
+            assert_eq!(proposal.epoch(), 1);
+            // Inherit parameters from genesis.
+            assert_eq!(proposal.n(), genesis.n);
+            assert_eq!(proposal.t(), genesis.t);
+
+            logging::log_info(&format!("Current epoch: {}", current.epoch()));
+
+            // Determine the number of unique signatures required for notarization.
+            let required_signatures = proposal.t() + 1;
+            // Add fewer signatures (all the same) so that notarization fails.
+            for _ in 0..(required_signatures - 1) {
+                proposal.add_signature(0);
+            }
+            assert!(!proposal.is_notarized());
+            // Now add the required unique signatures.
+            for i in 0..required_signatures {
+                proposal.add_signature(i);
+            }
+            assert!(proposal.is_notarized());
+
+            // Create a new block from the notarized proposal.
+            // Its parent is the current final block.
+            let block = StreamletBlock {
+                proposal: Box::new(proposal),
+                parent: Some(Box::new(current.clone())),
+            };
+
+            // According to the Python semantics:
+            //   - Let last = block (epoch 1),
+            //   - middle = block.parent (the genesis, epoch 0), and since genesis.parent is None,
+            //     last_final() should return middle (i.e. the genesis).
+            let last_final = block.last_final();
+            match last_final {
+                PermissionedBFTEnum::Base(ref base) => {
+                    // Expect the genesis base to be returned.
+                    assert_eq!(base.epoch(), 0);
+                    assert_eq!(last_final, genesis_bft);
+                }
+                PermissionedBFTEnum::Block(ref b) => {
+                    // In our desired semantics, we do not want to update finality if there's only one new block.
+                    // So if a Block is returned, its epoch should be 0 (which is not the case for block with epoch 1).
+                    panic!("Expected genesis finalization, got Block with epoch {}", b.epoch());
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
+
+    /// Test that asserting notarization on an under-signed proposal panics.
+    #[test]
+    #[should_panic(expected = "Proposal is not notarized")]
+    fn test_streamlet_assertions() {
+        // Construct the genesis block.
+        let genesis = StreamletGenesis::new(5);
+        let genesis_bft = genesis.last_final();
+
+        // Create a proposal using the genesis block as parent, with epoch 1.
+        let mut proposal = StreamletProposal::new(Box::new(genesis_bft), 1);
+
+        // Without signatures, assert_notarized should panic.
+        proposal.assert_notarized();
+
+        // After adding one signature, still not notarized.
+        proposal.add_signature(0);
+        proposal.assert_notarized();
+
+        // Now add the required number of unique signatures.
+        let required_signatures = proposal.t() + 1;
+        for i in 1..required_signatures {
+            proposal.add_signature(i);
+        }
+        // At this point, the proposal is notarized and assert_notarized() should succeed.
+        proposal.assert_notarized();
     }
 
     #[test]
@@ -157,12 +254,13 @@ mod tests {
             }
         });
     }
+
     #[test]
     fn test_event_queue_ordering() {
-        // Create a new event queue
+        // Create a new event queue.
         let mut event_queue = EventQueue::new();
 
-        // Create events with different timestamps
+        // Create events with different timestamps.
         let event1 = Event {
             timestamp: 10,
             sender: 0,
@@ -193,29 +291,30 @@ mod tests {
             },
         };
 
-        // Schedule events in the queue
+        // Schedule events in the queue.
         event_queue.schedule(event1);
         event_queue.schedule(event2);
         event_queue.schedule(event3);
 
-        // Process events in order of their timestamps
+        // Process events in order of their timestamps.
         let mut processed_events = Vec::new();
         while let Some(event) = event_queue.process_next_event() {
             processed_events.push(event);
         }
 
-        // Verify the order of processed events
+        // Verify the order of processed events.
         assert_eq!(processed_events.len(), 3);
         assert_eq!(processed_events[0].timestamp, 5);
         assert_eq!(processed_events[1].timestamp, 7);
         assert_eq!(processed_events[2].timestamp, 10);
 
-        println!("Processed events:");
+        // Log the processed events.
+        util::logging::log_info("Processed events:");
         for event in processed_events {
-            println!(
+            util::logging::log_info(&format!(
                 "Timestamp: {}, Content: {}",
                 event.timestamp, event.message.content
-            );
+            ));
         }
     }
 }
