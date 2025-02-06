@@ -1,0 +1,10 @@
+[package]
+name = "integration-tests"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+bc = { path = "../bc" }
+bft = { path = "../bft" }
+util = { path = "../util" }
+async-std = "1.13"
