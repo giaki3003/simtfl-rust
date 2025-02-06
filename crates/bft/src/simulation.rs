@@ -76,14 +76,6 @@ impl Simulation {
     /// 
     /// Processes events from the event queue and runs the main loop for each node.
     /// The simulation continues until the event queue is empty.
-    /// 
-    /// ## Example
-    /// ```rust
-    /// let mut simulation = Simulation::new();
-    /// simulation.add_node(HonestNode::new(0));
-    /// simulation.add_node(ByzantineNode::new(1));
-    /// async_std::task::block_on(simulation.start());
-    /// ```
     pub async fn start(&mut self) {
         logging::log_info("Starting BFT simulation...");
 

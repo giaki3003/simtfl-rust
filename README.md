@@ -72,6 +72,13 @@ These tests cover key functionality, such as:
 - **Message Passing**: Verifies message transmission, delays, and causal ordering.
 - **Consensus Protocols**: Ensures the correctness of proposal, voting, and finalization.
 
+On top of that, each individual crate has its own unit tests that can be run with:
+
+```bash
+# Run all unit tests
+cargo test
+```
+
 ---
 
 ## Documentation
